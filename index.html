@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Shop</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- Web Monetization meta tag -->
+    <meta name="monetization" content="$wallet.example.com/alice">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        header {
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .nav-links a {
+            margin-left: 20px;
+            text-decoration: none;
+            color: #333;
+        }
+        main {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 30px;
+        }
+        .product {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .product:hover {
+            transform: translateY(-5px);
+        }
+        .product img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .product-info {
+            padding: 20px;
+        }
+        .product h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .product p {
+            margin: 0 0 15px 0;
+            color: #666;
+        }
+        .buy-now {
+            background-color: #ffd700;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .buy-now:hover {
+            background-color: #ffcc00;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #senderPointerInput {
+            margin-top: 10px;
+            width: 100%;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">Bike Shop</div>
+            <div class="nav-links">
+                <a href="#">Bikes</a>
+                <a href="#">Accessories</a>
+                <a href="#">Equipment</a>
+                <a href="/storeManager">Store Manager</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <h1>YOUR BEST RIDE</h1>
+        <div class="products">
+            <div class="product">
+                <img src="https://images.unsplash.com/photo-1532298229144-0ec0c57515c7" alt="Mountain Bike">
+                <div class="product-info">
+                    <h2>Mountain Bike</h2>
+                    <p>Price: R15000</p>
+                    <button onclick="buyNow('Mountain Bike', 15000)" class="buy-now">Buy Now</button>
+                </div>
+            </div>
+
+            <div class="product">
+                <img src="https://images.unsplash.com/photo-1485965120184-e220f721d03e" alt="Road Bike">
+                <div class="product-info">
+                    <h2>Road Bike</h2>
+                    <p>Price: R20000</p>
+                    <button onclick="buyNow('Road Bike', 20000)" class="buy-now">Buy Now</button>
+                </div>
+            </div>
+
+            <div class="product">
+                <img src="https://images.unsplash.com/photo-1571333250630-f0230c320b6d" alt="BMX Bike">
+                <div class="product-info">
+                    <h2>BMX Bike</h2>
+                    <p>Price: R8000</p>
+                    <button onclick="buyNow('BMX Bike', 8000)" class="buy-now">Buy Now</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="countryModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Select Your Country</h2>
+            <select id="countrySelect">
+                <option value="">Select a country</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="CA">Canada</option>
+                <option value="AU">Australia</option>
+                <option value="ZA">South Africa</option>
+                <!-- Add more countries as needed -->
+            </select>
+            <input type="text" id="senderPointerInput" placeholder="Enter your Interledger payment pointer">
+            <button onclick="confirmCountry()">Confirm</button>
+        </div>
+    </div>
+
+    <script>
+        let totalPaid = 0;
+        let currentProduct = null;
+        let currentPrice = 0;
+        let currentCountry = null;
+        let senderPointer = null;
+
+        if (document.monetization) {
+            document.monetization.addEventListener('monetizationstart', () => {
+                console.log('Monetization started');
+            });
+
+            document.monetization.addEventListener('monetizationprogress', event => {
+                const { amount, assetCode } = event.detail;
+                totalPaid += Number(amount);
+                console.log(`Received payment: ${amount} ${assetCode}`);
+                console.log(`Total paid: ${totalPaid}`);
+
+                if (currentProduct && totalPaid >= currentPrice) {
+                    completeTransaction();
+                }
+            });
+        }
+
+        async function buyNow(product, priceInRand) {
+            currentProduct = product;
+            currentPrice = priceInRand;
+            totalPaid = 0;
+
+            const modal = document.getElementById('countryModal');
+            modal.style.display = 'block';
+        }
+
+        async function confirmCountry() {
+            const countrySelect = document.getElementById('countrySelect');
+            currentCountry = countrySelect.value;
+            senderPointer = document.getElementById('senderPointerInput').value;
+
+            if (!currentCountry || !senderPointer) {
+                alert('Please select a country and enter your payment pointer');
+                return;
+            }
+
+            const modal = document.getElementById('countryModal');
+            modal.style.display = 'none';
+
+            try {
+                const response = await axios.post('/api/web-monetization', { 
+                    product: currentProduct, 
+                    priceInRand: currentPrice, 
+                    country: currentCountry,
+                    senderPointer: senderPointer
+                });
+                const { localCurrency, paymentResult } = response.data;
+                
+                const confirmPayment = confirm(`Price: R${currentPrice} (${localCurrency} in your local currency). Do you want to proceed with the payment?`);
+                
+                if (confirmPayment) {
+                    if (paymentResult.success) {
+                        alert(`Payment initiated: ${paymentResult.message}`);
+                        // In a real application, you would monitor the payment status here
+                        setTimeout(() => completeTransaction(), 5000); // Simulate payment completion after 5 seconds
+                    } else {
+                        alert('Payment failed. Please try again.');
+                    }
+                } else {
+                    resetPaymentState();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        }
+
+        function completeTransaction() {
+            alert(`Payment successful for ${currentProduct}!`);
+            resetPaymentState();
+        }
+
+        function resetPaymentState() {
+            currentProduct = null;
+            currentPrice = 0;
+            totalPaid = 0;
+            currentCountry = null;
+            senderPointer = null;
+        }
+
+        // Close modal when clicking on <span> (x)
+        document.querySelector('.close').onclick = function() {
+            document.getElementById('countryModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('countryModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
