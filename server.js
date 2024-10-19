@@ -9,6 +9,7 @@ const WalletManager = require('./WalletManager');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const QRCode = require('qrcode');
 
 const app = express();
 const port = 3000;
@@ -49,6 +50,26 @@ app.use(express.static('public'));
 app.get('/storeManager', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'storeManager.html'));
 });
+
+// QR Code generation endpoint
+app.get('/generateQR', async (req, res) => {
+  try {
+    const { price } = req.query; // Get the price from query parameters
+    if (!price) {
+      return res.status(400).send('Price is required');
+    }
+
+    const qrData = `Price: ${price}`; // Data to encode in the QR code
+    const qrCodeImage = await QRCode.toDataURL(qrData); // Generate QR code
+
+    res.send(`<img src="${qrCodeImage}" alt="QR Code"/>`); // Send QR code as an image
+  } catch (err) {
+    console.error('Error generating QR code:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+
 
 // Load store manager details
 let storeManagerDetails = {};
